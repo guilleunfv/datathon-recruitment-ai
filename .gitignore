@@ -1,0 +1,26 @@
+# Entornos virtuales
+venv/
+.venv/
+
+# Archivos de datos grandes
+/data/
+
+# Artefactos de Python
+__pycache__/
+*.pyc
+
+# Artefactos de Jupyter
+.ipynb_checkpoints/
+
+# Modelos serializados
+/models/
+
+# Archivos de configuración de IDE
+.idea/
+.vscode/
+
+# Archivos del sistema operativo
+.DS_Store
+
+# Archivos de secretos
+.streamlit/secrets.toml
