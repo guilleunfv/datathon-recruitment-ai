@@ -1,4 +1,4 @@
-# CÓDIGO FINAL E DEFINITIVO com filtros na página principal
+# CÓDIGO FINAL E DEFINITIVO com tudo na página principal
 import streamlit as st
 import pandas as pd
 import joblib
@@ -11,7 +11,7 @@ st.set_page_config(
     page_title="Decision AI - Otimizador de Recrutamento",
     page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed" # Esconde a barra lateral por padrão
 )
 
 @st.cache_resource
@@ -72,8 +72,7 @@ st.title("🤖 Decision AI: Otimizador de Recrutamento")
 BUCKET = "datathon-decision-ai-bolanos" 
 model, model_columns, df_app, lang_model = load_artifacts_from_gcs(BUCKET)
 
-with st.expander("ℹ️ Sobre o Projeto e Modelo"):
-    # ... (código do expander, sem alterações) ...
+with st.expander("ℹ️ Sobre o Projeto e Modelo", expanded=True): # expanded=True para que apareça aberto por padrão
     st.header("Datathon")
     st.write("**Integrantes:**")
     st.info("""
@@ -83,22 +82,19 @@ with st.expander("ℹ️ Sobre o Projeto e Modelo"):
     """)
     st.markdown("---")
     st.header("Sobre o Modelo")
-    st.markdown("""
-    - **Algoritmo:** XGBoost
-    - **Exatidão (Accuracy):** 82%
-    - **Recall (Contratados):** 51%
-    """)
-    st.markdown("Apoiado por Streamlit e Google Cloud.")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Algoritmo", "XGBoost")
+    with col2:
+        st.metric("Exatidão (Accuracy)", "82%")
+    with col3:
+        st.metric("Recall (Contratados)", "51%")
+    st.caption("Apoiado por Streamlit e Google Cloud.")
     
-# Limpando a barra lateral
-with st.sidebar:
-    st.write("Use os filtros na página principal.")
-
 if model is None or df_app is None or lang_model is None:
     st.error("A aplicação não pôde ser iniciada. Verifique os erros de carregamento acima.")
     st.stop()
 
-# ✅ Filtro movido para a página principal
 if 'titulo_vaga' in df_app.columns:
     st.markdown("---")
     lista_vagas = sorted(df_app['titulo_vaga'].astype(str).unique())
