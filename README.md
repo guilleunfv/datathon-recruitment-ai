@@ -75,9 +75,8 @@ python src/train.py
 
 ├── app/
 │   └── app.py              # Script da aplicação Streamlit
-├── data/                   
-├── models/                 
-├── notebooks/
+├── data/                   # (Ignorado pelo Git) Dados brutos e processados
+├── models/                 # (Ignorado pelo Git) Modelos treinados (.joblib)
 │   └── 1-EDA.ipynb         # Notebook de exploração e prototipagem
 ├── src/
 │   ├── preprocessing.py    # Funções de carga e limpeza
