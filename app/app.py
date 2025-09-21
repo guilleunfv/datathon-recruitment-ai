@@ -14,20 +14,15 @@ st.set_page_config(
 
 @st.cache_resource
 def load_artifacts_from_gcs(bucket_name):
+    # ... (esta função está correta, não precisa mudar) ...
     try:
         with st.spinner("🔐 Autenticando com Google Cloud..."):
             creds_info = st.secrets["gcs_credentials"]
-            
-            # CORREÇÃO DEFINITIVA: Definimos o 'scope' (permissão) explicitamente.
-            # Isto resolve o erro 'invalid_scope' em ambientes não interativos.
             scopes = [
                 'https://www.googleapis.com/auth/cloud-platform',
                 'https://www.googleapis.com/auth/devstorage.read_only',
             ]
-            creds = service_account.Credentials.from_service_account_info(
-                creds_info,
-                scopes=scopes
-            )
+            creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
             gcs = gcsfs.GCSFileSystem(project=creds_info['project_id'], token=creds)
 
         caminho_modelo_gcs = f"gs://{bucket_name}/models/recruitment_model.joblib"
@@ -84,13 +79,40 @@ if 'titulo_vaga' in df_app.columns:
         st.markdown("---")
         df_filtrado = df_app[df_app['titulo_vaga'] == vaga_selecionada].copy()
         
-        cols_comuns = [col for col in model_columns if col in df_filtrado.columns]
-        X_pred = pd.DataFrame(columns=model_columns)
-        X_pred = pd.concat([X_pred, df_filtrado[cols_comuns]]).fillna(0)
+        # ==============================================================================
+        # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ CORREÇÃO FINAL AQUI ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+        # ==============================================================================
+        
+        # 2. Replicar o pré-processamento do notebook ANTES da predição
+        print("Aplicando pré-processamento final antes da predição...")
 
-        pred_probs = model.predict_proba(X_pred[model_columns])[:, 1]
-        df_filtrado['match_score'] = (pred_probs * 100)
-        df_resultados = df_filtrado.sort_values(by='match_score', ascending=False)
+        # Lista de colunas categóricas (deve ser a mesma do notebook)
+        colunas_categoricas = [
+            'nivel profissional', 'nivel_academico', 'nivel_ingles', 
+            'nivel_espanhol', 'vaga_sap', 'tipo_contratacao'
+        ]
+        colunas_categoricas = [col for col in colunas_categoricas if col in df_filtrado.columns]
+
+        # Aplicar One-Hot Encoding
+        df_pred_processed = pd.get_dummies(df_filtrado, columns=colunas_categoricas, prefix=colunas_categoricas)
+
+        # Tratar a coluna 'remuneracao' e outras que possam ser 'object'
+        for col in model_columns:
+            if col in df_pred_processed.columns and df_pred_processed[col].dtype == 'object':
+                df_pred_processed[col] = pd.to_numeric(df_pred_processed[col], errors='coerce').fillna(0)
+
+        # Garantir que o DataFrame de predição tenha EXATAMENTE as mesmas colunas do modelo
+        # A função .reindex() é perfeita para isso.
+        X_pred = df_pred_processed.reindex(columns=model_columns, fill_value=0)
+        
+        # ==============================================================================
+        # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ CORREÇÃO FINAL AQUI ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        # ==============================================================================
+
+        pred_probs = model.predict_proba(X_pred)[:, 1]
+        df_resultados = df_filtrado.copy() # Usamos o df_filtrado original para manter colunas de texto
+        df_resultados['match_score'] = (pred_probs * 100)
+        df_resultados = df_resultados.sort_values(by='match_score', ascending=False)
         
         st.header(f"🏆 Ranking de Candidatos para: {vaga_selecionada}")
         col1, col2, col3 = st.columns(3)
