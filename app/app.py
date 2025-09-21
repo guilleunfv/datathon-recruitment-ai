@@ -1,4 +1,4 @@
-# CÓDIGO FINAL SIMPLIFICADO para app.py
+# CÓDIGO FINAL E DEFINITIVO para app.py
 import streamlit as st
 import pandas as pd
 import joblib
@@ -17,7 +17,17 @@ def load_artifacts_from_gcs(bucket_name):
     try:
         with st.spinner("🔐 Autenticando com Google Cloud..."):
             creds_info = st.secrets["gcs_credentials"]
-            creds = service_account.Credentials.from_service_account_info(creds_info)
+            
+            # CORREÇÃO DEFINITIVA: Definimos o 'scope' (permissão) explicitamente.
+            # Isto resolve o erro 'invalid_scope' em ambientes não interativos.
+            scopes = [
+                'https://www.googleapis.com/auth/cloud-platform',
+                'https://www.googleapis.com/auth/devstorage.read_only',
+            ]
+            creds = service_account.Credentials.from_service_account_info(
+                creds_info,
+                scopes=scopes
+            )
             gcs = gcsfs.GCSFileSystem(project=creds_info['project_id'], token=creds)
 
         caminho_modelo_gcs = f"gs://{bucket_name}/models/recruitment_model.joblib"
@@ -36,7 +46,6 @@ def load_artifacts_from_gcs(bucket_name):
         st.error(f"❌ Erro fatal ao carregar artefatos do GCS: {e}")
         return None, None, None
 
-# --- UI (sin cambios) ---
 st.image("https://pos.fiap.com.br/wp-content/uploads/2022/07/pos-tech-fiap.svg", width=250)
 st.title("🤖 Decision AI: Ranking de Candidatos")
 st.markdown("Uma ferramenta de IA para ajudar recrutadores a encontrar os melhores talentos de forma eficiente.")
