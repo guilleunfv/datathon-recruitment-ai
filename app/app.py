@@ -1,4 +1,4 @@
-# CÓDIGO FINAL E DEFINITIVO para app.py
+# CÓDIGO COMPLETO, PROFISSIONAL E CORRIGIDO para app.py
 import streamlit as st
 import pandas as pd
 import joblib
@@ -16,7 +16,9 @@ st.set_page_config(
 
 @st.cache_resource
 def load_artifacts_from_gcs(bucket_name):
-    # ... (esta função está correta, não muda) ...
+    """
+    Função para baixar e carregar o modelo, as colunas e o dataset do GCS.
+    """
     try:
         with st.spinner("🔐 Autenticando com Google Cloud..."):
             creds_info = st.secrets["gcs_credentials"]
@@ -43,38 +45,30 @@ def load_artifacts_from_gcs(bucket_name):
         st.error(f"❌ Erro fatal ao carregar artefatos do GCS: {e}")
         return None, None, None
 
-# ✅ NOVA FUNÇÃO PARA OTIMIZAÇÃO DE VAGA
 def gerar_recomendacoes_vaga(df_ranked, top_n_percent=0.20):
     """
     Analisa os melhores candidatos e sugere palavras-chave para otimizar a descrição da vaga.
     """
-    # 1. Selecionar os melhores candidatos (top 20% por padrão)
+    if df_ranked.empty:
+        return [], []
+        
     top_candidates = df_ranked.head(max(1, int(len(df_ranked) * top_n_percent)))
-    
-    # 2. Identificar as colunas de habilidades (skills)
     skill_columns = [col for col in top_candidates.columns if col.startswith('skill_')]
-    
-    # 3. Calcular a frequência de cada habilidade entre os melhores candidatos
     skill_counts = top_candidates[skill_columns].sum()
-    # Filtrar habilidades que aparecem em pelo menos um candidato do top
     frequent_skills = skill_counts[skill_counts > 0].sort_values(ascending=False)
     
     if frequent_skills.empty:
-        return "Nenhuma habilidade em comum encontrada entre os melhores candidatos para esta vaga.", []
+        return [], []
         
-    # 4. Extrair o texto original da descrição da vaga
-    vaga_text = (df_ranked['principais_atividades'].iloc[0] + " " + df_ranked['competencia_tecnicas_e_comportamentais'].iloc[0]).lower()
+    vaga_text = (str(df_ranked['principais_atividades'].iloc[0]) + " " + str(df_ranked['competencia_tecnicas_e_comportamentais'].iloc[0])).lower()
     
-    # 5. Identificar habilidades recomendadas que JÁ NÃO ESTÃO na descrição
     recomendacoes = []
-    for skill_col_name, count in frequent_skills.items():
-        # Limpar o nome da habilidade (ex: 'skill_gestao_de_projetos' -> 'gestão de projetos')
-        skill_name = skill_col_name.replace('skill_', '').replace('_', ' ')
-        # Usar regex para verificar se a habilidade já existe no texto
+    common_skills_list = frequent_skills.index.str.replace('skill_', '').str.replace('_', ' ').tolist()
+    for skill_name in common_skills_list:
         if not re.search(r'\b' + re.escape(skill_name) + r'\b', vaga_text, re.IGNORECASE):
-            recomendacoes.append(skill_name.capitalize())
+            recomendacoes.append(skill_name.title()) # Usamos .title() para capitalizar
             
-    return frequent_skills.index.str.replace('skill_', '').str.replace('_', ' ').tolist(), recomendacoes
+    return common_skills_list, recomendacoes
 
 # --- Interface Principal ---
 st.image("https://pos.fiap.com.br/wp-content/uploads/2022/07/pos-tech-fiap.svg", width=250)
@@ -83,11 +77,25 @@ st.title("🤖 Decision AI: Ferramenta de Otimização de Recrutamento")
 BUCKET = "datathon-decision-ai-bolanos" 
 model, model_columns, df_app = load_artifacts_from_gcs(BUCKET)
 
-# --- Barra Lateral ---
-# (sem alterações)
+with st.sidebar:
+    st.header("Datathon")
+    st.write("**Integrantes:**")
+    st.info("""
+    - Rosicléia Cavalcante Mota
+    - Guillermo J. Camahuali Privat
+    - Kelly Priscilla Matos Campos
+    """)
+    st.markdown("---")
+    st.header("Sobre o Modelo")
+    st.markdown("""
+    - **Algoritmo:** XGBoost
+    - **Exatidão (Accuracy):** 82%
+    - **Recall (Contratados):** 51%
+    """)
+    st.markdown("Apoiado por Streamlit e Google Cloud.")
 
 if model is None or df_app is None:
-    st.error("A aplicação não pôde ser iniciada.")
+    st.error("A aplicação não pôde ser iniciada. Verifique os erros de carregamento acima.")
     st.stop()
 
 if 'titulo_vaga' in df_app.columns:
@@ -98,40 +106,73 @@ if 'titulo_vaga' in df_app.columns:
         st.markdown("---")
         df_filtrado = df_app[df_app['titulo_vaga'] == vaga_selecionada].copy()
         
-        # Pre-processamento para predição
-        X_pred = pd.DataFrame(columns=model_columns)
-        cols_comuns = [col for col in model_columns if col in df_filtrado.columns]
-        X_pred = pd.concat([X_pred, df_filtrado[cols_comuns]]).fillna(0)
+        # ==============================================================================
+        # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ BLOCO CORRIGIDO ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+        # Este es el bloque de pre-procesamiento que faltaba. Replica exactamente
+        # los pasos finales del notebook para asegurar que el modelo reciba los
+        # datos en el formato numérico correcto.
+        # ==============================================================================
+        colunas_categoricas = [
+            'nivel profissional', 'nivel_academico', 'nivel_ingles', 
+            'nivel_espanhol', 'vaga_sap', 'tipo_contratacacao'
+        ]
+        colunas_categoricas_existentes = [col for col in colunas_categoricas if col in df_filtrado.columns]
+        df_pred_processed = pd.get_dummies(df_filtrado, columns=colunas_categoricas_existentes, prefix=colunas_categoricas_existentes)
+
+        for col in model_columns:
+            if col in df_pred_processed.columns and df_pred_processed[col].dtype == 'object':
+                df_pred_processed[col] = pd.to_numeric(df_pred_processed[col], errors='coerce').fillna(0)
         
-        pred_probs = model.predict_proba(X_pred[model_columns])[:, 1]
+        X_pred = df_pred_processed.reindex(columns=model_columns, fill_value=0)
+        # ==============================================================================
+        # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ FIM DO BLOCO CORRIGIDO ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        # ==============================================================================
+
+        pred_probs = model.predict_proba(X_pred)[:, 1]
         df_resultados = df_filtrado.copy()
         df_resultados['match_score'] = (pred_probs * 100)
         df_resultados = df_resultados.sort_values(by='match_score', ascending=False)
         
-        # --- ABAS DE NAVEGAÇÃO ---
         tab_ranking, tab_otimizacao = st.tabs(["🏆 Ranking de Candidatos", "✨ Otimizar Vaga com IA"])
 
         with tab_ranking:
-            # (Código do ranking como antes)
             st.header(f"Ranking para: {vaga_selecionada}")
             col1, col2, col3 = st.columns(3)
-            # ... (métricas e dataframe) ...
-
+            col1.metric("Total de Candidatos", len(df_resultados))
+            col2.metric("Melhor Match Score", f"{df_resultados['match_score'].max():.2f}%")
+            col3.metric("Match Score Médio", f"{df_resultados['match_score'].mean():.2f}%")
+            
+            cols_ranking = ['nome', 'match_score', 'similitude_cv_vaga', 'anos_experiencia', 'email']
+            cols_ranking_existentes = [col for col in cols_ranking if col in df_resultados.columns]
+            
+            if cols_ranking_existentes:
+                st.dataframe(
+                    df_resultados[cols_ranking_existentes],
+                    use_container_width=True,
+                    column_config={
+                        "nome": st.column_config.TextColumn("Nome do Candidato", width="large"),
+                        "match_score": st.column_config.ProgressColumn("Match Score (%)", format="%.2f%%", min_value=0, max_value=100),
+                        "similitude_cv_vaga": st.column_config.NumberColumn("Similitude CV", format="%.2f"),
+                        "anos_experiencia": st.column_config.NumberColumn("Anos Exp.", format="%d anos"),
+                        "email": st.column_config.TextColumn("E-mail")
+                    },
+                    hide_index=True
+                )
+        
         with tab_otimizacao:
             st.header("🤖 Assistente de Otimização de Vaga")
-            st.markdown("A IA analisou os CVs dos candidatos com maior *match score* para esta vaga e sugere melhorias para a sua descrição.")
+            st.markdown("A IA analisou os CVs dos candidatos com maior *match score* e sugere melhorias para a descrição da vaga.")
             
-            # Gerar e exibir as recomendações
             common_skills, recommendations = gerar_recomendacoes_vaga(df_resultados)
 
             st.markdown("---")
-            st.subheader("Palavras-chave a serem adicionadas")
+            st.subheader("💡 Palavras-chave Recomendadas")
             if recommendations:
                 st.success("Para atrair candidatos mais qualificados, considere adicionar as seguintes habilidades à descrição da vaga:")
-                # Exibir em colunas para melhor visualização
                 cols = st.columns(3)
                 for i, rec in enumerate(recommendations):
-                    cols[i % 3].markdown(f"- **{rec}**")
+                    with cols[i % 3]:
+                        st.markdown(f"- **{rec}**")
             else:
                 st.info("A descrição desta vaga já parece bem alinhada com as habilidades dos melhores candidatos. Bom trabalho!")
 
@@ -142,6 +183,5 @@ if 'titulo_vaga' in df_app.columns:
                 st.code(f"Habilidades mais comuns no top 20%: {', '.join(common_skills[:5])}...")
                 st.write("3. Comparou essas habilidades com o texto da descrição da vaga atual.")
                 st.write("4. As sugestões acima são as habilidades frequentes nos melhores candidatos que **não** foram encontradas na sua descrição.")
-
 else:
     st.warning("A coluna 'titulo_vaga' não foi encontrada no dataset.")
