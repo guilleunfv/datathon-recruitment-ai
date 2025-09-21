@@ -12,7 +12,7 @@ Decision AI é uma solução de Inteligência Artificial desenvolvida para o Dat
 
 ## 🚀 Link para a Aplicação (Demo)
 
-**[Acesse a aplicação aqui!](URL_DA_SUA_APP_STREAMLIT)**
+**[Acesse a aplicação aqui!](https://datathon-recruitment-ai.streamlit.app/)**
 
 ## 🛠️ Stack Tecnológica
 
@@ -36,7 +36,7 @@ Siga os passos abaixo para executar a aplicação no seu ambiente local.
 
 1.  **Clone o repositório:**
     ```bash
-    git clone https://github.com/seu-usuario/datathon-recruitment-ai.git
+    git clone https://github.com/guilleunfv/datathon-recruitment-ai.git
     cd datathon-recruitment-ai
     ```
 
@@ -70,3 +70,22 @@ Para retreinar o modelo com novos dados, basta executar o script principal de tr
 
 ```bash
 python src/train.py
+
+📂 Estrutura do Repositório
+
+├── app/
+│   └── app.py              # Script da aplicação Streamlit
+├── data/                   
+├── models/                 
+├── notebooks/
+│   └── 1-EDA.ipynb         # Notebook de exploração e prototipagem
+├── src/
+│   ├── preprocessing.py    # Funções de carga e limpeza
+│   ├── feature_engineering.py # Funções de criação de features
+│   └── train.py            # Script principal para retreinar o modelo
+├── .gitignore
+├── README.md               # Esta documentação
+└── requirements.txt        # Dependências do projeto
+
+
+
